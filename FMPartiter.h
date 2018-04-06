@@ -25,13 +25,15 @@ class FMPartiter
 
   private:
 
+    void reset();
+
     double balanceDegree;
 
-    std::vector<std::list<Cell>::iterator>  cells;
-    std::vector<Net>                        nets;
+    std::vector<Cell> cells;
+    std::vector<Net>  nets;
 
-    std::vector<std::list<Cell> > bucketA;
-    std::vector<std::list<Cell> > bucketB;
+    std::vector<std::list<int> > bucketA;
+    std::vector<std::list<int> > bucketB;
 
     int maxGainIndexA;
     int maxGainIndexB;

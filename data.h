@@ -12,6 +12,7 @@ enum Group
 struct Cell
 {
   int               gain;
+  bool              locked;
   Group             group;
   std::vector<int>  nets;
 };

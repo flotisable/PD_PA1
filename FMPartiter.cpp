@@ -5,10 +5,9 @@ using namespace std;
 void FMPartiter::initialize( const Parser::ParseResult &result ) /*{{{*/
 {
   // get parser result {{{
-  vector<Cell> cells = result.cells;
-
   balanceDegree = result.balanceDegree;
   nets          = result.nets;
+  cells         = result.cells;
   // end get parser result
   /*}}}*/
   // initial partition {{{
@@ -18,7 +17,26 @@ void FMPartiter::initialize( const Parser::ParseResult &result ) /*{{{*/
   for( size_t i = middle  ; i < cells.size()  ; ++i ) cells[i].group = groupB;
   // end initial partition
   /*}}}*/
-  // initialize gain and bucket {{{
+}
+/*}}}*/
+void FMPartiter::partite()
+{
+  int largestPartialSum;
+
+  do
+  {
+    reset();
+
+  }while( largestPartialSum > 0 );
+}
+
+FMPartiter::PartitionResult FMPartiter::partitionResult()
+{
+  return PartitionResult();
+}
+
+void FMPartiter::reset() /*{{{*/
+{
   int maxGain = 0;
 
   // initialze gain {{{
@@ -26,6 +44,9 @@ void FMPartiter::initialize( const Parser::ParseResult &result ) /*{{{*/
   {
      Cell  &cell  = cells[i];
      Group from   = cell.group;
+
+     cell.gain    = 0;
+     cell.locked  = false;
 
      for( size_t j = 0 ; j < cell.nets.size() ; ++j )
      {
@@ -48,7 +69,12 @@ void FMPartiter::initialize( const Parser::ParseResult &result ) /*{{{*/
   // initialize bucket {{{
   bucketA.resize( maxGain * 2 + 1 );
   bucketB.resize( maxGain * 2 + 1 );
-  this->cells.resize( cells.size() );
+
+  for( size_t i = 0 ; i < bucketA.size() ; ++i )
+     bucketA[i].clear();
+
+  for( size_t i = 0 ; i < bucketB.size() ; ++i )
+     bucketB[i].clear();
 
   middleGainIndex = maxGain + 1;
   maxGainIndexA   = -maxGain;
@@ -60,32 +86,18 @@ void FMPartiter::initialize( const Parser::ParseResult &result ) /*{{{*/
 
      if( cells[i].group == groupA )
      {
-       bucketA[cellIndex].push_front( cells[i] );
+       bucketA[cellIndex].push_front( i );
 
        if( cellIndex > maxGainIndexA ) maxGainIndexA = cellIndex;
-
-       this->cells[i] = bucketA[cellIndex].begin();
      }
      else
      {
-       bucketB[cellIndex].push_front( cells[i] );
+       bucketB[cellIndex].push_front( i );
 
        if( cellIndex > maxGainIndexB ) maxGainIndexB = cellIndex;
-
-       this->cells[i] = bucketB[cellIndex].begin();
      }
   }
   // end initialize bucket }}}
-  // end initialize gain and bucket }}}
-}
-/*}}}*/
-void FMPartiter::partite()
-{
-}
-
-FMPartiter::PartitionResult FMPartiter::partitionResult()
-{
-  return PartitionResult();
-}
+} /*}}}*/
 
 // vim: foldmethod=marker
