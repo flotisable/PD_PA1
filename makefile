@@ -8,11 +8,11 @@ tagsCandidate = *.cpp *.h
 .PHONY: default
 default: debug
 
-$(PROG): main.o
+$(PROG): main.o parser.o
 	$(LD) -o $@ $^
 
-main.o: main.cpp 
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+main.o: main.cpp parser.h data.h
+parser.o: parser.cpp parser.h data.h
 
 .PHONY: release
 release: CXXFLAGS += -DNDEBUG
