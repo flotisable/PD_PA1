@@ -100,6 +100,9 @@ bool Parser::parse( const string &fileName ) /*{{{*/
       Net   &net  = result.nets[netIndex];
       Cell  &cell = result.cells[cellIndex];
 
+      cell.gain   = 0;
+      cell.group  = groupA;
+
       net.cells.push_back( cellIndex  );
       cell.nets.push_back( netIndex   );
       // end set net and cell information }}}

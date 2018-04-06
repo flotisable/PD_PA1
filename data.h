@@ -3,9 +3,16 @@
 
 #include <vector>
 
+enum Group
+{
+  groupA,
+  groupB
+};
+
 struct Cell
 {
   int               gain;
+  Group             group;
   std::vector<int>  nets;
 };
 
