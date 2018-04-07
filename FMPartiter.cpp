@@ -123,11 +123,41 @@ void FMPartiter::partite() /*{{{*/
   }while( largestPartialSum > 0 );
 }
 /*}}}*/
-FMPartiter::PartitionResult FMPartiter::partitionResult()
+FMPartiter::PartitionResult FMPartiter::partitionResult() /*{{{*/
 {
-  return PartitionResult();
-}
+  PartitionResult result;
 
+  result.cutSize = 0;
+
+  // calculate cut size {{{
+  for( size_t i = 0 ; i < nets.size() ; ++i )
+  {
+     bool inGroupA = false;
+     bool inGroupB = false;
+
+     for( size_t j = 0 ; j < nets[i].cells.size() ; ++i )
+     {
+        if( cells[nets[i].cells[j]].group == groupA ) inGroupA = true;
+        else                                          inGroupB = true;
+
+        if( inGroupA && inGroupB )
+        {
+          ++result.cutSize;
+          break;
+        }
+     }
+  }
+  // end calculate cut size
+  /*}}}*/
+  // split group a and b {{{
+  for( size_t i = 0 ; i < cells.size() ; ++i )
+     if( cells[i].group == groupA ) result.groupA.push_back( cells[i] );
+     else                           result.groupB.push_back( cells[i] );
+  // end split group a and b
+  /*}}}*/
+  return result;
+}
+/*}}}*/
 void FMPartiter::reset() /*{{{*/
 {
   int maxGain = 0;
