@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <list>
+#include <ostream>
 
 #include "data.h"
 #include "parser.h"
@@ -15,8 +16,8 @@ class FMPartiter
     {
       int cutSize;
 
-      std::vector<Cell> groupA;
-      std::vector<Cell> groupB;
+      std::vector<int> groupA;
+      std::vector<int> groupB;
     };
 
     void            initialize( const Parser::ParseResult &result );
@@ -27,6 +28,7 @@ class FMPartiter
 
     void                      reset       ();
     std::list<int>::iterator  getMovedCell();
+    void                      updateCell  ( int index, bool inc );
 
     double balanceDegree;
 
@@ -40,5 +42,7 @@ class FMPartiter
     int maxGainIndexB;
     int middleGainIndex;
 };
+
+std::ostream& operator<<( std::ostream &out, const FMPartiter::PartitionResult &result );
 
 #endif

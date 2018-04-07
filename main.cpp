@@ -1,15 +1,28 @@
 #include <iostream>
+#include <string>
 using namespace std;
 
 #include "parser.h"
+#include "FMPartiter.h"
 
 int main()
 {
-  Parser parser;
+  string      inputFileName = "input_pa1/input_1.dat";
+  Parser      parser;
+  FMPartiter  partiter;
 
-  if( parser.parse( "input_pa1/input_1.dat" ) )
+  if( parser.parse( inputFileName ) )
   {
-    cout << parser.parseResult();
+#ifndef NDEBUG
+    cout << parser.parseResult() << "\n";
+#endif
+
+    partiter.initialize( parser.parseResult() );
+    partiter.partite();
+
+#ifndef NDEBUG
+    cout << partiter.partitionResult() << "\n";
+#endif
   }
   else
   {

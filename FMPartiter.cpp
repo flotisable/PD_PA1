@@ -1,7 +1,28 @@
 #include "FMPartiter.h"
 
+#include <iostream>
+#include <limits>
 using namespace std;
 
+ostream& operator<<( ostream &out, const FMPartiter::PartitionResult &result ) /*{{{*/
+{
+  out << "Cutsize = " << result.cutSize << "\n";
+
+  out << "G1 " << result.groupA.size() << "\n";
+
+  for( size_t i = 0 ; i < result.groupA.size() ; ++i )
+     out << "c" << result.groupA[i] + 1 << " ";
+  out << ";\n";
+
+  out << "G2 " << result.groupB.size() << "\n";
+
+  for( size_t i = 0 ; i < result.groupB.size() ; ++i )
+     out << "c" << result.groupB[i] + 1 << " ";
+  out << ";\n";
+
+  return out;
+}
+/*}}}*/
 void FMPartiter::initialize( const Parser::ParseResult &result ) /*{{{*/
 {
   // get parser result {{{
@@ -17,6 +38,18 @@ void FMPartiter::initialize( const Parser::ParseResult &result ) /*{{{*/
   for( size_t i = middle  ; i < cells.size()  ; ++i ) cells[i].group = groupB;
   // end initial partition
   /*}}}*/
+  // initialize bucket size {{{
+  size_t maxPin = 0;
+
+  for( size_t i = 0 ; i < cells.size() ; ++i )
+     if( cells[i].nets.size() > maxPin )
+       maxPin = cells[i].nets.size();
+
+  bucketA.resize( maxPin * 2 + 1 );
+  bucketB.resize( maxPin * 2 + 1 );
+
+  middleGainIndex = maxPin;
+  // end initialize bucket size }}}
 }
 /*}}}*/
 void FMPartiter::partite() /*{{{*/
@@ -30,22 +63,23 @@ void FMPartiter::partite() /*{{{*/
 
     reset();
 
+    clog << "total cells : " << cells.size() << "\n";
+
     // update gain {{{
     for( size_t i = 0 ; cells.size() ; ++i )
     {
-       list<int>::iterator  it      = getMovedCell();
-       Cell                 &cell   = cells[*it];
-       Group                from    = cell.group;
+       list<int>::iterator it = getMovedCell();
 
-       // move the cell {{{
-       cell.locked  = true;
+       if( it == bucketA[0].end() || it == bucketB[0].end() ) break;
 
-       if( cell.group == groupA )
-         bucketA[ middleGainIndex + cell.gain ].erase( it );
-       else
-         bucketB[ middleGainIndex + cell.gain ].erase( it );
-       // end move the cell
-       /*}}}*/
+       Cell   &cell         = cells[*it];
+       Group  from          = cell.group;
+       int    maxGainIndex  = ( cell.group == groupA ) ? maxGainIndexA : maxGainIndexB;
+
+       clog << "the " << i << "-th cell\n";
+
+       cell.locked = true;
+
        // update gain {{{
        for( size_t j = 0 ; j < cell.nets.size() ; ++j )
        {
@@ -64,32 +98,87 @@ void FMPartiter::partite() /*{{{*/
           // end collect cell of from and to
           /*}}}*/
           // update gain by to condition {{{
-          if( toCells.size() == 0 )
+          if( toCells.size() == 0 ) /*{{{*/
           {
             for( size_t k = 0 ; k < net.cells.size() ; ++k )
-               if( !cells[net.cells[k]].locked ) ++cells[net.cells[k]].gain;
-          }
-          else if( toCells.size() == 1 )
-            if( !cells[toCells.front()].locked ) --cells[toCells.front()].gain;
+            {
+               Cell &cell = cells[net.cells[k]];
+
+               if( !cell.locked )
+               {
+                 updateCell( net.cells[k], true );
+
+                 if( middleGainIndex + cell.gain > maxGainIndex )
+                   maxGainIndex = middleGainIndex + cell.gain;
+               }
+            }
+          } /*}}}*/
+          else if( toCells.size() == 1 ) /*{{{*/
+          {
+            if( !cells[toCells.front()].locked )
+              updateCell( toCells.front(), false );
+          } /*}}}*/
           // end update gain by to condition
           /*}}}*/
           fromCells.remove( *it );
           toCells.push_back( *it );
 
           // update gain by from condition {{{
-          if( fromCells.size() == 0 )
+          if( fromCells.size() == 0 ) /*{{{*/
           {
             for( size_t k = 0 ; k < net.cells.size() ; ++k )
-               if( !cells[net.cells[k]].locked ) --cells[net.cells[k]].gain;
-          }
-          else if( fromCells.size() == 1 )
-            if( !cells[fromCells.front()].locked ) ++cells[fromCells.front()].gain;
+               if( !cells[net.cells[k]].locked )
+                 updateCell( net.cells[k], false );
+          } /*}}}*/
+          else if( fromCells.size() == 1 ) /*{{{*/
+          {
+            Cell &cell = cells[fromCells.front()];
+
+            if( !cell.locked )
+            {
+              updateCell( fromCells.front(), true );
+
+              if( middleGainIndex + cell.gain > maxGainIndex )
+                maxGainIndex = middleGainIndex + cell.gain;
+            }
+          } /*}}}*/
           // end update gain by from condition }}}
        }
        // end update gain
        /*}}}*/
        gainStep.push_back( cell.gain );
        cellStep.push_back( *it );
+
+       // move the cell {{{
+       if( cell.group == groupA )
+       {
+         bucketA[ middleGainIndex + cell.gain ].erase( it );
+
+       }
+       else
+       {
+         bucketB[ middleGainIndex + cell.gain ].erase( it );
+
+       }
+       maxGainIndexA = maxGainIndex;
+
+       clog << "maxGainIndexA : " << maxGainIndexA << "\n";
+
+       while( bucketA[maxGainIndexA].size() == 0 && maxGainIndexA > 0 )
+         --maxGainIndexA;
+
+       clog << "maxGainIndexA : " << maxGainIndexA << "\n";
+
+       maxGainIndexB = maxGainIndex;
+
+       clog << "maxGainIndexB : " << maxGainIndexB << "\n";
+
+       while( bucketB[maxGainIndexB].size() == 0 && maxGainIndexB > 0 )
+         --maxGainIndexB;
+
+       clog << "maxGainIndexB : " << maxGainIndexB << "\n";
+       // end move the cell
+       /*}}}*/
     }
     // end update gain
     /*}}}*/
@@ -116,7 +205,7 @@ void FMPartiter::partite() /*{{{*/
     {
        Cell &cell = cells[cellStep[i]];
 
-       cell.group = ( cell.group == groupA ) ?  groupB: groupA;
+       cell.group = ( cell.group == groupA ) ? groupB: groupA;
     }
     // end move cells
     /*}}}*/
@@ -135,7 +224,7 @@ FMPartiter::PartitionResult FMPartiter::partitionResult() /*{{{*/
      bool inGroupA = false;
      bool inGroupB = false;
 
-     for( size_t j = 0 ; j < nets[i].cells.size() ; ++i )
+     for( size_t j = 0 ; j < nets[i].cells.size() ; ++j )
      {
         if( cells[nets[i].cells[j]].group == groupA ) inGroupA = true;
         else                                          inGroupB = true;
@@ -151,8 +240,8 @@ FMPartiter::PartitionResult FMPartiter::partitionResult() /*{{{*/
   /*}}}*/
   // split group a and b {{{
   for( size_t i = 0 ; i < cells.size() ; ++i )
-     if( cells[i].group == groupA ) result.groupA.push_back( cells[i] );
-     else                           result.groupB.push_back( cells[i] );
+     if( cells[i].group == groupA ) result.groupA.push_back( i );
+     else                           result.groupB.push_back( i );
   // end split group a and b
   /*}}}*/
   return result;
@@ -160,17 +249,18 @@ FMPartiter::PartitionResult FMPartiter::partitionResult() /*{{{*/
 /*}}}*/
 void FMPartiter::reset() /*{{{*/
 {
-  int maxGain = 0;
+  maxGainIndexA = 0;
+  maxGainIndexB = 0;
 
-  // initialze gain {{{
   for( size_t i = 0 ; i < cells.size() ; ++i )
   {
-     Cell  &cell  = cells[i];
-     Group from   = cell.group;
+     Cell   &cell     = cells[i];
+     Group  from      = cell.group;
 
      cell.gain    = 0;
      cell.locked  = false;
 
+     // calculate initial gain {{{
      for( size_t j = 0 ; j < cell.nets.size() ; ++j )
      {
         Net &net    = nets[cell.nets[j]];
@@ -185,29 +275,12 @@ void FMPartiter::reset() /*{{{*/
         if( fromNum == 1 ) ++cell.gain;
         if( toNum   == 0 ) --cell.gain;
      }
-     if( cell.gain > maxGain ) maxGain = cell.gain;
-  }
-  // end initialze gain
-  /*}}}*/
-  // initialize bucket {{{
-  bucketA.resize( maxGain * 2 + 1 );
-  bucketB.resize( maxGain * 2 + 1 );
+     // end calculate initial gain
+     /*}}}*/
+     // add to bucket {{{
+     int cellIndex = middleGainIndex + cell.gain;
 
-  for( size_t i = 0 ; i < bucketA.size() ; ++i )
-     bucketA[i].clear();
-
-  for( size_t i = 0 ; i < bucketB.size() ; ++i )
-     bucketB[i].clear();
-
-  middleGainIndex = maxGain + 1;
-  maxGainIndexA   = -maxGain;
-  maxGainIndexB   = -maxGain;
-
-  for( size_t i = 0 ; i < cells.size() ; ++i )
-  {
-     int cellIndex = middleGainIndex + cells[i].gain;
-
-     if( cells[i].group == groupA )
+     if( cell.group == groupA )
      {
        bucketA[cellIndex].push_front( i );
 
@@ -219,12 +292,13 @@ void FMPartiter::reset() /*{{{*/
 
        if( cellIndex > maxGainIndexB ) maxGainIndexB = cellIndex;
      }
+     // end add to bucket }}}
   }
-  // end initialize bucket }}}
 }
 /*}}}*/
 list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
 {
+  // variables declaration {{{
   list<int>::iterator it;
   list<int>::iterator itA       = bucketA[maxGainIndexA].begin();
   list<int>::iterator itB       = bucketB[maxGainIndexB].begin();
@@ -234,23 +308,37 @@ list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
   int                 cellNumB  = 0;
   double              cellLB    = ( 1 - balanceDegree ) / 2 * cells.size();
   double              cellUB    = ( 1 + balanceDegree ) / 2 * cells.size();
-
+  // end variables declaration
+  /*}}}*/
+  // calculate cell number in group a and b {{{
   for( size_t i = 0 ; i < cells.size() ; ++i )
   {
      if( cells[i].group == groupA ) ++cellNumA;
      else                           ++cellNumB;
   }
-
+  // end calculate cell number in group a and b
+  /*}}}*/
   while( true )
   {
-    it = ( indexA < indexB ) ? itB : itA;
+    if( indexA < indexB )
+      it = ( itB == bucketB[indexB].end() ) ? itA : itB;
+    else
+      it = ( itA == bucketA[indexA].end() ) ? itB : itA;
+
+    clog  << "itV " << *it << " indexA " << indexA << " indexB " << indexB
+          << " maxA " << maxGainIndexA << " maxB " << maxGainIndexB
+          << " aNum " << bucketA[indexA].size() << " bNum " << bucketB[indexB].size() <<"\n";
+
+    if( it == bucketA[indexA].end() || it == bucketB[indexB].end() ) return it;
 
     // check size constraint {{{
     if( cells[*it].group == groupA )
     {
       if( cellLB > cellNumA - 1 || cellNumB + 1 > cellUB )
       {
-        while( ++itA == bucketA[indexA].end() )
+        ++itA;
+
+        while( itA == bucketA[indexA].end() && indexA > 0 )
         {
           --indexA;
           itA = bucketA[indexA].begin();
@@ -262,7 +350,9 @@ list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
     {
       if( cellLB > cellNumB - 1 || cellNumA + 1 > cellUB )
       {
-        while( ++itB == bucketB[indexB].end() )
+        ++itB;
+
+        while( itB == bucketB[indexB].end() && indexB > 0 )
         {
           --indexB;
           itB = bucketB[indexB].begin();
@@ -274,6 +364,27 @@ list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
     /*}}}*/
     return it;
   }
+}
+/*}}}*/
+void FMPartiter::updateCell( int index, bool inc ) /*{{{*/
+{
+  Cell                &cell     = cells[index];
+  vector<list<int> >  &bucket  = ( cell.group == groupA ) ? bucketA: bucketB;
+  int                 cellIndex = middleGainIndex + cell.gain;
+
+  bucket[cellIndex].remove( index );
+
+  if( inc )
+  {
+    ++cell.gain;
+    ++cellIndex;
+  }
+  else
+  {
+    --cell.gain;
+    --cellIndex;
+  }
+  bucket[cellIndex].push_front( index );
 } /*}}}*/
 
 // vim: foldmethod=marker
