@@ -27,14 +27,14 @@ int main( int argc, char* argv[] )
     ofstream file( outputFileName.c_str() );
 
 #ifndef NDEBUG
-    cout << parser.parseResult() << "\n";
+    clog << parser.parseResult() << "\n";
 #endif
 
     partiter.initialize( parser.parseResult() );
     partiter.partite();
 
 #ifndef NDEBUG
-    cout << partiter.partitionResult() << "\n";
+    //clog << partiter.partitionResult() << "\n";
 #endif
 
     file << partiter.partitionResult() << "\n";

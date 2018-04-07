@@ -3,5 +3,7 @@
 *.doc
 *.pdf
 *.vim
+*.out
+*.log
 fm
 tags

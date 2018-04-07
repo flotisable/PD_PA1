@@ -1,7 +1,11 @@
 #include "FMPartiter.h"
 
+#ifndef NDEBUG
 #include <iostream>
+#endif
+
 #include <limits>
+#include <cassert>
 using namespace std;
 
 ostream& operator<<( ostream &out, const FMPartiter::PartitionResult &result ) /*{{{*/
@@ -63,7 +67,9 @@ void FMPartiter::partite() /*{{{*/
 
     reset();
 
+#ifndef NDEBUG
     clog << "total cells : " << cells.size() << "\n";
+#endif
 
     // update gain {{{
     for( size_t i = 0 ; cells.size() ; ++i )
@@ -76,7 +82,9 @@ void FMPartiter::partite() /*{{{*/
        Group  from          = cell.group;
        int    maxGainIndex  = ( cell.group == groupA ) ? maxGainIndexA : maxGainIndexB;
 
+#ifndef NDEBUG
        clog << "the " << i << "-th cell\n";
+#endif
 
        cell.locked = true;
 
@@ -153,30 +161,38 @@ void FMPartiter::partite() /*{{{*/
        if( cell.group == groupA )
        {
          bucketA[ middleGainIndex + cell.gain ].erase( it );
-
+         cell.group = groupB;
        }
        else
        {
          bucketB[ middleGainIndex + cell.gain ].erase( it );
-
+         cell.group = groupA;
        }
        maxGainIndexA = maxGainIndex;
 
+#ifndef NDEBUG
        clog << "maxGainIndexA : " << maxGainIndexA << "\n";
+#endif
 
        while( bucketA[maxGainIndexA].size() == 0 && maxGainIndexA > 0 )
          --maxGainIndexA;
 
+#ifndef NDEBUG
        clog << "maxGainIndexA : " << maxGainIndexA << "\n";
+#endif
 
        maxGainIndexB = maxGainIndex;
 
+#ifndef NDEBUG
        clog << "maxGainIndexB : " << maxGainIndexB << "\n";
+#endif
 
        while( bucketB[maxGainIndexB].size() == 0 && maxGainIndexB > 0 )
          --maxGainIndexB;
 
+#ifndef NDEBUG
        clog << "maxGainIndexB : " << maxGainIndexB << "\n";
+#endif
        // end move the cell
        /*}}}*/
     }
@@ -201,7 +217,7 @@ void FMPartiter::partite() /*{{{*/
     // end calculate max partial sum
     /*}}}*/
     // move cells {{{
-    for( size_t i = 0 ; i <= largestPartialSumIndex ; ++i )
+    for( size_t i = largestPartialSumIndex + 1 ; i < cellStep.size() ; ++i )
     {
        Cell &cell = cells[cellStep[i]];
 
@@ -251,6 +267,12 @@ void FMPartiter::reset() /*{{{*/
 {
   maxGainIndexA = 0;
   maxGainIndexB = 0;
+
+  for( size_t i = 0 ; i < bucketA.size() ; ++i )
+     bucketA[i].clear();
+
+  for( size_t i = 0 ; i < bucketB.size() ; ++i )
+     bucketB[i].clear();
 
   for( size_t i = 0 ; i < cells.size() ; ++i )
   {
@@ -310,6 +332,11 @@ list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
   double              cellUB    = ( 1 + balanceDegree ) / 2 * cells.size();
   // end variables declaration
   /*}}}*/
+
+#ifndef NDEBUG
+  clog << "cellLB : " << cellLB << ", cellUB : " << cellUB << "\n";
+#endif
+
   // calculate cell number in group a and b {{{
   for( size_t i = 0 ; i < cells.size() ; ++i )
   {
@@ -318,6 +345,11 @@ list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
   }
   // end calculate cell number in group a and b
   /*}}}*/
+
+#ifndef NDEBUG
+  clog << "cell number in A : " << cellNumA << ", cell number in B : " << cellNumB << "\n";
+#endif
+
   while( true )
   {
     if( indexA < indexB )
@@ -325,18 +357,26 @@ list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
     else
       it = ( itA == bucketA[indexA].end() ) ? itB : itA;
 
+#ifndef NDEBUG
     clog  << "itV " << *it << " indexA " << indexA << " indexB " << indexB
           << " maxA " << maxGainIndexA << " maxB " << maxGainIndexB
           << " aNum " << bucketA[indexA].size() << " bNum " << bucketB[indexB].size() <<"\n";
+#endif
 
     if( it == bucketA[indexA].end() || it == bucketB[indexB].end() ) return it;
 
     // check size constraint {{{
     if( cells[*it].group == groupA )
     {
+      assert( it == itA );
+
       if( cellLB > cellNumA - 1 || cellNumB + 1 > cellUB )
       {
         ++itA;
+
+#ifndef NDEBUG
+        clog << "itA : " << *itA << "\n";
+#endif
 
         while( itA == bucketA[indexA].end() && indexA > 0 )
         {
@@ -348,9 +388,15 @@ list<int>::iterator FMPartiter::getMovedCell() /*{{{*/
     }
     else
     {
+      assert( it == itB );
+
       if( cellLB > cellNumB - 1 || cellNumA + 1 > cellUB )
       {
         ++itB;
+
+#ifndef NDEBUG
+        clog << "itB : " << *itB << " " << ( itB == bucketB[indexB].end() ) << "\n";
+#endif
 
         while( itB == bucketB[indexB].end() && indexB > 0 )
         {
