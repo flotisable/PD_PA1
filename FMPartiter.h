@@ -25,7 +25,8 @@ class FMPartiter
 
   private:
 
-    void reset();
+    void                      reset       ();
+    std::list<int>::iterator  getMovedCell();
 
     double balanceDegree;
 
