@@ -1,5 +1,7 @@
 # Physical Design Pa1
   partition homework for physical design
+
+  [PA description](http://cc.ee.ntu.edu.tw/~ywchang/Courses/PD/prog1_partitioning.pdf)
 # Indexes
   - [Contents](#contents)
   - [Compiling](#compiling)
